@@ -1,11 +1,11 @@
 import numpy as np
 import skfuzzy as fuzz
 from skfuzzy import control as ctrl
-from typing import List, Tuple
+from typing import List
 
 import matplotlib.pyplot as plt
 
-from data_loader import load_data
+from chromosome import Chromosome
 
 class FuzzySystem:
     def __init__(self, dataset):
@@ -16,13 +16,13 @@ class FuzzySystem:
         for column in self.dataset.columns:
             if column == 'class': # output muts be in 'class' column !!!
                 continue
-            self.in_vars.append(ctrl.Antecedent(np.arange(self.dataset[column].min(), \
-                                                          self.dataset[column].max(), 0.1), column))
+            self.in_vars.append(ctrl.Antecedent(np.arange(self.dataset[column].min(),
+                                                self.dataset[column].max(), 0.1), column))
         
         # classes must be of integer type and must be in 'class' column
         # not here but for future purposes in definition of membership functions
         self.n_classes = len(self.dataset['class'].unique())
-        self.out_var = ctrl.Consequent(np.arange(0, self.n_classes + 1.1, 0.1), 'class')
+        self.out_var = ctrl.Consequent(np.arange(1, self.n_classes + 0.1, 0.1), 'class')
     
     def mem_funcs(self, names: List[List[str]] = None):
         # define default names for membership functions
@@ -32,24 +32,22 @@ class FuzzySystem:
 
         for i in range(len(self.in_vars)):
             self.in_vars[i].automf(names=self.names[i])
-        
-        # classes must be represented with numbers !!!
-        for i in range(self.n_classes):
-            self.out_var[i] = fuzz.trimf(self.out_var.universe, [i, i + 1, i + 2])
-    
-    def generate_rules(self, chromosome):
-        i_chromosome = iter(chromosome)
 
+        # classes must be represented with numbers !!!
+        self.out_var.automf(names=[str(i) for i in range(1, self.n_classes + 1)])
+    
+    def generate_rules(self, chromosome: Chromosome):
         # apply chromosome to generate rules
+        index = 0
         self.rules = []
         for i in range(len(self.in_vars)):
             for j in range(i + 1, len(self.in_vars)):
                 var_a = self.in_vars[i]
                 var_b = self.in_vars[j]
 
-                val_a = self.names[i][i_chromosome.__next__()]
-                val_b = self.names[j][i_chromosome.__next__()]
-                val_out = i_chromosome.__next__()
+                val_a = self.names[i][chromosome.x1[index]]
+                val_b = self.names[j][chromosome.x2[index]]
+                val_out = str(chromosome.y[index])
 
                 rule = ctrl.Rule(var_a[val_a] & var_b[val_b], self.out_var[val_out])
                 self.rules.append(rule)
@@ -69,48 +67,16 @@ class FuzzySystem:
 
         return simulation
 
-def main():
-    dataset = load_data()
+    def error(self, chromosome: Chromosome):
+        self.generate_rules(chromosome)
 
-    system = FuzzySystem(dataset)
-    system.mem_funcs()
-
-    # # show membership functions
-    # system.in_vars[0].view()
-    # system.out_var.view()
-    # plt.show()
-
-    # generate chromosome
-    vars_len = len(system.in_vars)
-    chromosome_len = (int)(vars_len * (vars_len - 1) / 2) * 3
-    chromosome = []
-    for i in range(chromosome_len):
-        # every third element must class
-        if i % 3 == 2:
-            chromosome.append(np.random.randint(0, system.n_classes))
-        else:
-            chromosome.append(np.random.randint(0, len(system.names[0])))
-
-    # define some example rules
-    system.generate_rules(chromosome)
-    print(f'Rules lenght: {len(system.rules)}')
-
-    # get class from output
-    class_centers = {
-        'class1': 1,
-        'class2': 2,
-        'class3': 3
-    }
-
-    # compute fuzzy output
-    simulation = system.compute(0)
-    sys_output = simulation.output['class']
-    print(f'Fuzzy output: {sys_output}')
-    print(f'Prediction: {min(class_centers, key=lambda x: abs(class_centers[x] - sys_output))}')
-
-    # show output membership function
-    system.out_var.view(sim=simulation)
-    plt.show()
-
-if __name__ == '__main__':
-    main()
+        fitness = 0
+        not_found = 0
+        for i in range(len(self.dataset)):
+            simulation = self.compute(i)
+            try:
+                output = simulation.output['class']
+            except:
+                not_found += 1
+            fitness += abs(output - self.dataset['class'][i])
+        return fitness / (len(self.dataset) - not_found)
