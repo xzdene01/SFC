@@ -7,72 +7,93 @@ import matplotlib.pyplot as plt
 
 from data_loader import load_data
 
-def generate_rules(in_vars, output, in_bins: Tuple, out_bins: Tuple) -> List[ctrl.Rule]:
-    rules = []
-    for var_a in in_vars:
-        for var_b in in_vars:
-            if var_a == var_b:
+class FuzzySystem:
+    def __init__(self, dataset):
+        self.dataset = dataset
+        
+        # definition (of structure of) input and output variables
+        self.in_vars = []
+        for column in self.dataset.columns:
+            if column == 'class': # output muts be in 'class' column !!!
                 continue
-
-            # random choice from bins
-            rnd_a = np.random.choice(in_bins)
-            rnd_b = np.random.choice(in_bins)
-            rnd_out = np.random.choice(out_bins)
-
-            rule = ctrl.Rule(var_a[rnd_a] & var_b[rnd_b], output[rnd_out])
-            rules.append(rule)
+            self.in_vars.append(ctrl.Antecedent(np.arange(self.dataset[column].min(), \
+                                                          self.dataset[column].max(), 0.1), column))
+        
+        # classes must be of integer type and must be in 'class' column
+        # not here but for future purposes in definition of membership functions
+        self.n_classes = len(self.dataset['class'].unique())
+        self.out_var = ctrl.Consequent(np.arange(0, self.n_classes + 1.1, 0.1), 'class')
     
-    return rules
+    def mem_funcs(self, names: List[List[str]] = None):
+        # define default names for membership functions
+        if names is None:
+            names = [['low', 'medium', 'high'] for _ in range(len(self.in_vars))]
+        self.names = names
+
+        for i in range(len(self.in_vars)):
+            self.in_vars[i].automf(names=self.names[i])
+        
+        # classes must be represented with numbers !!!
+        for i in range(self.n_classes):
+            self.out_var[i] = fuzz.trimf(self.out_var.universe, [i, i + 1, i + 2])
+    
+    def generate_rules(self, chromosome):
+        i_chromosome = iter(chromosome)
+
+        # apply chromosome to generate rules
+        self.rules = []
+        for i in range(len(self.in_vars)):
+            for j in range(i + 1, len(self.in_vars)):
+                var_a = self.in_vars[i]
+                var_b = self.in_vars[j]
+
+                val_a = self.names[i][i_chromosome.__next__()]
+                val_b = self.names[j][i_chromosome.__next__()]
+                val_out = i_chromosome.__next__()
+
+                rule = ctrl.Rule(var_a[val_a] & var_b[val_b], self.out_var[val_out])
+                self.rules.append(rule)
+        
+        # create control system from rules
+        self.control_system = ctrl.ControlSystem(self.rules)
+    
+    def compute(self, row: int):
+        simulation = ctrl.ControlSystemSimulation(self.control_system)
+
+        for column in self.dataset.columns:
+            if column == 'class':
+                continue
+            simulation.input[column] = self.dataset[column][row]
+        
+        simulation.compute()
+
+        return simulation
 
 def main():
     dataset = load_data()
-    
-    # define the input and output fuzzy variables
-    in_vars = []
-    for column in dataset.columns:
-        if column == 'class':
-            continue
-        in_vars.append(ctrl.Antecedent(np.arange(dataset[column].min(), dataset[column].max(), 0.1), column))
-    
-    output = ctrl.Consequent(np.arange(0, 4.1, 0.1), 'class')
 
-    # define the membership functions
-    names = ['low', 'medium', 'high']
-    for in_var in in_vars:
-        in_var.automf(names=names)
-    
-    output['class1'] = fuzz.trimf(output.universe, [0, 1, 2])
-    output['class2'] = fuzz.trimf(output.universe, [1, 2, 3])
-    output['class3'] = fuzz.trimf(output.universe, [2, 3, 4])
+    system = FuzzySystem(dataset)
+    system.mem_funcs()
 
-    # generate list of random choices that is len(in_vars) ^ 2 * 3 long
-    choices = np.random.randint(0, 3, len(in_vars) ** 2 * 3)
+    # # show membership functions
+    # system.in_vars[0].view()
+    # system.out_var.view()
+    # plt.show()
+
+    # generate chromosome
+    vars_len = len(system.in_vars)
+    chromosome_len = (int)(vars_len * (vars_len - 1) / 2) * 3
+    chromosome = []
+    for i in range(chromosome_len):
+        # every third element must class
+        if i % 3 == 2:
+            chromosome.append(np.random.randint(0, system.n_classes))
+        else:
+            chromosome.append(np.random.randint(0, len(system.names[0])))
 
     # define some example rules
-    rules = generate_rules(in_vars, output, ('low', 'medium', 'high'), ('class1', 'class2', 'class3'))
-
-    # generate rnd list of weights for rules
-    weights = np.random.rand(len(rules))
-
-    # apply weights to rules
-    for i, rule in enumerate(rules):
-        if i > len(weights) / 2:
-            rule.weight = 0
-        else:
-            rule.weight = weights[i]
-
-    # create the control system
-    system = ctrl.ControlSystem(rules)
-    sim = ctrl.ControlSystemSimulation(system)
-
-    # provide inputs from first row of dataset
-    for column in dataset.columns:
-        if column == 'class':
-            continue
-        sim.input[column] = dataset[column][0]
-
-    # compute fuzzy output
-    sim.compute()
+    system.generate_rules(chromosome)
+    print(f'Rules lenght: {len(system.rules)}')
 
     # get class from output
     class_centers = {
@@ -81,11 +102,15 @@ def main():
         'class3': 3
     }
 
-    sim_output = sim.output['class']
-    prediction = min(class_centers, key=lambda x: abs(class_centers[x] - sim_output))
+    # compute fuzzy output
+    simulation = system.compute(0)
+    sys_output = simulation.output['class']
+    print(f'Fuzzy output: {sys_output}')
+    print(f'Prediction: {min(class_centers, key=lambda x: abs(class_centers[x] - sys_output))}')
 
-    print(f'Fuzzy output: {sim_output}')
-    print(f'Prediction: {prediction}')
+    # show output membership function
+    system.out_var.view(sim=simulation)
+    plt.show()
 
 if __name__ == '__main__':
     main()
