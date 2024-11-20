@@ -2,11 +2,15 @@ import numpy as np
 import pandas as pd
 
 from typing import List, Tuple
+import matplotlib.pyplot as plt
+from concurrent.futures import ThreadPoolExecutor
 
 from arg_parser import parse_args
 from data_loader import load_data
 from fuzzy import FuzzySystem
 from chromosome import Chromosome
+
+BATCH_SIZE = 32
 
 def score_chromosome(dataset: pd.DataFrame, chromosome: Chromosome) -> float:
     system = FuzzySystem(dataset)
@@ -68,17 +72,29 @@ def genetic_algorithm(dataset: pd.DataFrame,
     best_error = np.inf
 
     for i in range(n_generations):
-        errors = np.array([score_chromosome(dataset, chrom) for chrom in population])
+        batch = dataset.sample(BATCH_SIZE).reset_index(drop=True)
+        print(f'Batch {i + 1}/{n_generations}')
+        # print(batch)
+
+        errors = np.array([score_chromosome(batch, chrom) for chrom in population])
+        # with ThreadPoolExecutor() as executor:
+        #     errors = np.array(list(executor.map(lambda chrom: score_chromosome(dataset, chrom), population)))
+
+        changed = False
         if errors.min() < best_error:
             best_error = errors.min()
             best_chromosome = population[errors.argmin()]
+            changed = True
         
         parents = select_parents(population, errors, n_parents)
         children = crossover(parents, pop_size - n_parents)
         children = [mutate(child, mutation) for child in children]
         population = parents + children
 
-        print(f'Generation {i + 1}/{n_generations}, best error: {best_error:.4f}')
+        # print(f'All errors: {errors}')
+        print(f'Generation {i + 1}/{n_generations}, best error: {best_error:.4f} ({"changed" \
+            if changed else "not changed"})')
+        best_chromosome.save('chromosomes/best_chromosome.npz')
 
     return best_chromosome, best_error
 
@@ -86,10 +102,8 @@ def main():
     args = parse_args()
     dataset = load_data(args.dataset)
 
-    # chromosome = Chromosome(dataset.shape[1] - 1, len(dataset['class'].unique()))
-    # chromosome.generate_random()
-    # error = score_chromosome(dataset, chromosome)
-    # print(f'Error: {error:.4f}')
+    if args.seed is not None:
+        np.random.seed(args.seed)
 
     best_chromosome, best_error = genetic_algorithm(
         dataset=dataset,

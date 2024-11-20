@@ -15,13 +15,11 @@ class Chromosome:
         self.y = np.array([], dtype=int)
 
     def generate_random(self):
-        index = 0
         for i in range(self.n_vars):
             for j in range(i + 1, self.n_vars):
                 self.x1 = np.append(self.x1, np.random.randint(0, len(self.names[i])))
                 self.x2 = np.append(self.x2, np.random.randint(0, len(self.names[j])))
                 self.y = np.append(self.y, np.random.randint(1, self.n_classes + 1))
-                index += 1
     
     def save(self, filename):
         np.savez(filename, x1=self.x1, x2=self.x2, y=self.y)

@@ -23,6 +23,7 @@ class FuzzySystem:
         # not here but for future purposes in definition of membership functions
         self.n_classes = len(self.dataset['class'].unique())
         self.out_var = ctrl.Consequent(np.arange(1, self.n_classes + 0.1, 0.1), 'class')
+        self.out_var.defuzzify_method = 'centroid'
     
     def mem_funcs(self, names: List[List[str]] = None):
         # define default names for membership functions
@@ -35,11 +36,17 @@ class FuzzySystem:
 
         # classes must be represented with numbers !!!
         self.out_var.automf(names=[str(i) for i in range(1, self.n_classes + 1)])
+
+        # # plot membership functions
+        # for var in self.in_vars:
+        #     var.view()
+        # self.out_var.view()
+        # plt.show()
     
     def generate_rules(self, chromosome: Chromosome):
         # apply chromosome to generate rules
         index = 0
-        self.rules = []
+        rules = []
         for i in range(len(self.in_vars)):
             for j in range(i + 1, len(self.in_vars)):
                 var_a = self.in_vars[i]
@@ -50,10 +57,11 @@ class FuzzySystem:
                 val_out = str(chromosome.y[index])
 
                 rule = ctrl.Rule(var_a[val_a] & var_b[val_b], self.out_var[val_out])
-                self.rules.append(rule)
+                rules.append(rule)
+                index += 1
         
         # create control system from rules
-        self.control_system = ctrl.ControlSystem(self.rules)
+        self.control_system = ctrl.ControlSystem(rules)
     
     def compute(self, row: int):
         simulation = ctrl.ControlSystemSimulation(self.control_system)
