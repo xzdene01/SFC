@@ -60,28 +60,29 @@ class FuzzySystem:
         self.out_var.automf(names=self.names[-1])
     
     def create_ctrl_system(self, chromosome: Chromosome):
-        iter_x1 = iter(chromosome.x1)
-        iter_x2 = iter(chromosome.x2)
-        iter_y = iter(chromosome.y)
-
         # create rule from chromosome for each pair of input variables
+        iteraion = 0
         rules = []
         for i in range(len(self.in_vars)):
             for j in range(i + 1, len(self.in_vars)):
+                chrom = chromosome[iteraion]
+
                 # get variables to be set into rule (eg. 'Cement', 'Water')
                 var_a = self.in_vars[i]
                 var_b = self.in_vars[j]
 
                 # get values to be set into variables (eg. 'low', 'medium', 'high')
-                val_a = self.names[i][iter_x1.__next__()]
-                val_b = self.names[j][iter_x2.__next__()]
-                val_out = self.names[-1][iter_y.__next__()]
+                val_a = self.names[i][chrom['x1']]
+                val_b = self.names[j][chrom['x2']]
+                val_out = self.names[-1][chrom['y']]
 
                 # create rule (eg. 'Cement[low] AND Water[high] -> target[medium]')
                 # if cement is low and water is high than target is medium
                 rule = ctrl.Rule(var_a[val_a] & var_b[val_b], self.out_var[val_out])
+                rule.weight = chrom['weight']
                 rules.append(rule)
-        
+                iteraion += 1
+
         # create control system from rules
         self.control_system = ctrl.ControlSystem(rules)
         return self.control_system
@@ -97,7 +98,10 @@ class FuzzySystem:
 
         # set input values
         for i in range(len(self.in_vars)):
-            simulation.input[self.in_vars[i].label] = inputs.iloc[i]
+            try:
+                simulation.input[self.in_vars[i].label] = inputs.iloc[i]
+            except: # variable is not in rules
+                pass
         
         # make computation
         simulation.compute()

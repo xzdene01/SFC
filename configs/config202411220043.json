@@ -1,0 +1,12 @@
+{
+    "dataset": "data/Concrete_Data.csv",
+    "pop_size": 128,
+    "generations": 100,
+    "mutation": 0.1,
+    "seed": 3082451672,
+    "processes": 18,
+    "test": true,
+    "input": null,
+    "active_rules": 0.8,
+    "a_mutation": 0.05
+}
