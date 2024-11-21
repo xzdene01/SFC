@@ -1,17 +1,16 @@
+import argparse
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from typing import List, Tuple
-import matplotlib.pyplot as plt
 from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import Pool
 
 from arg_parser import parse_args
-from data_loader import load_data_split, load_data_split
+from data_loader import load_data_split
 from fuzzy import FuzzySystem
 from chromosome import Chromosome
-
-MULTI_THREAD = False
 
 def init_population(names: List[List[str]], pop_size: int) -> List[Chromosome]:
     population = []
@@ -51,23 +50,38 @@ def crossover(parents: List[Chromosome], n_children: int) -> Chromosome:
     return children
 
 def mutate(chromosome: Chromosome, mutation_rate: float) -> Chromosome:
-    n_mutations = int(mutation_rate * chromosome.x1.size)
-    indices = np.random.choice(chromosome.x1.size, n_mutations, replace=False)
+    new_chromosome = Chromosome(names=chromosome.names)
+    new_chromosome.x1 = chromosome.x1.copy()
+    new_chromosome.x2 = chromosome.x2.copy()
+    new_chromosome.y = chromosome.y.copy()
 
-    # this will change the whole rule values
-    for i in indices:
-        chromosome.x1[i] = np.random.randint(0, len(chromosome.x1_names[i]))
-        chromosome.x2[i] = np.random.randint(0, len(chromosome.x2_names[i]))
-        chromosome.y[i] = np.random.randint(0, len(chromosome.names[-1]))
+    for i in range(new_chromosome.x1.size):
+        if np.random.rand() < mutation_rate:
+            new_chromosome.x1[i] = np.random.randint(0, len(new_chromosome.x1_names[i]))
+            new_chromosome.x2[i] = np.random.randint(0, len(new_chromosome.x2_names[i]))
+            new_chromosome.y[i] = np.random.randint(0, len(new_chromosome.names[-1]))
     
-    return chromosome
+    # print old chromosome data
+    # print(chromosome.x1)
+    # print(new_chromosome.x1)
+    # print('-------------------')
+    # print(chromosome.x2)
+    # print(new_chromosome.x2)
+    # print('-------------------')
+    # print(chromosome.y)
+    # print(new_chromosome.y)
+
+    # input()
+
+    return new_chromosome
 
 def genetic_algorithm(dataset: pd.DataFrame,
                       names: List[List[str]],
                       pop_size: int,
                       n_generations: int,
                       mutation: float,
-                      n_parents: int) -> Tuple[Chromosome, float]:
+                      n_parents: int,
+                      args: argparse.Namespace) -> Tuple[Chromosome, float]:
 
     population = init_population(names, pop_size)
     best_chromosome = None
@@ -75,18 +89,19 @@ def genetic_algorithm(dataset: pd.DataFrame,
 
     print(f'Training started ...')
     for i in range(n_generations):
+
         errors = np.empty(pop_size)
-        if not MULTI_THREAD:
-            for idx, chromosome in tqdm(enumerate(population), total=pop_size, desc=f"Evaluating Gen {i + 1}/{n_generations}"):
-                errors[idx] = score_chromosome(dataset, names, chromosome)
-        else:
-            with ThreadPoolExecutor() as executor:
+        if args.processes > 1:
+            with Pool(processes=args.processes) as pool:
                 futures = [
-                    executor.submit(score_chromosome, dataset, names, chrom)
+                    pool.apply_async(score_chromosome, (dataset, names, chrom))
                     for chrom in population
                 ]
                 for idx, future in tqdm(enumerate(futures), total=pop_size, desc=f'Evaluating gen {i + 1}/{n_generations}'):
-                    errors[idx] = future.result()
+                    errors[idx] = future.get()
+        else:
+            for idx, chromosome in tqdm(enumerate(population), total=pop_size, desc=f"Evaluating Gen {i + 1}/{n_generations}"):
+                errors[idx] = score_chromosome(dataset, names, chromosome)
 
         changed = False
         if errors.min() < best_error:
@@ -94,10 +109,13 @@ def genetic_algorithm(dataset: pd.DataFrame,
             best_chromosome = population[errors.argmin()]
             changed = True
         
-        parents = select_parents(population=population, errors=errors, n_parents=n_parents)
-        children = crossover(parents=parents, n_children=pop_size - n_parents)
+        # parents = select_parents(population=population, errors=errors, n_parents=n_parents)
+        # children = crossover(parents=parents, n_children=pop_size - n_parents)
+
+        # copy best parent to all children
+        children = [best_chromosome] * pop_size
         children = [mutate(chromosome=child, mutation_rate=mutation) for child in children]
-        population = parents + children
+        population = children
 
         print(f'Generation {i + 1}/{n_generations}, best error: {best_error:.4f} ({"changed" \
             if changed else "not changed"}) - best from current generation: {errors.min():.4f}')
@@ -116,9 +134,9 @@ def main():
     # generate names for membership functions (last must be the target)
     names = [['low', 'medium', 'high'] for _ in range(train.shape[1])]
 
-    num_rules = len(names) * (len(names) - 1) // 2
-    num_params = num_rules * 3
-    print(f'Number of rules: {num_rules} ({num_params} parameters)')
+    n_vars = len(names) - 1
+    n_rules = n_vars * (n_vars - 1) // 2
+    print(f'Number of rules: {n_rules} ({n_rules * 3} parameters)')
 
     # training (GA)
     best_chromosome, best_error = genetic_algorithm(
@@ -127,7 +145,8 @@ def main():
         pop_size=args.pop_size,
         n_generations=args.generations,
         mutation=args.mutation,
-        n_parents=args.parents
+        n_parents=args.parents,
+        args=args
     )
 
     print(f'Best error (train): {best_error:.4f}')
