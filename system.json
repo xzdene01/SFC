@@ -1,0 +1,98 @@
+{
+    "names": [
+        [
+            "low",
+            "medium",
+            "high"
+        ],
+        [
+            "low",
+            "medium",
+            "high"
+        ],
+        [
+            "low",
+            "medium",
+            "high"
+        ],
+        [
+            "low",
+            "medium",
+            "high"
+        ],
+        [
+            "low",
+            "medium",
+            "high"
+        ],
+        [
+            "low",
+            "medium",
+            "high"
+        ],
+        [
+            "low",
+            "medium",
+            "high"
+        ],
+        [
+            "low",
+            "medium",
+            "high"
+        ],
+        [
+            "low",
+            "medium",
+            "high"
+        ]
+    ],
+    "float_step": 0.1,
+    "default_output": 36.5576213592233,
+    "in_vars": [
+        {
+            "label": "Cement ",
+            "min": 102.0,
+            "max": 539.9999999999751
+        },
+        {
+            "label": "Blast Furnace Slag ",
+            "min": 0.0,
+            "max": 359.40000000000003
+        },
+        {
+            "label": "Fly Ash ",
+            "min": 0.0,
+            "max": 174.70000000000002
+        },
+        {
+            "label": "Water ",
+            "min": 121.8,
+            "max": 227.99999999999397
+        },
+        {
+            "label": "Superplasticizer ",
+            "min": 0.0,
+            "max": 32.2
+        },
+        {
+            "label": "Coarse Aggregate ",
+            "min": 801.0,
+            "max": 1145.0000000000782
+        },
+        {
+            "label": "Fine Aggregate ",
+            "min": 594.0,
+            "max": 992.7000000000907
+        },
+        {
+            "label": "Age ",
+            "min": 1.0,
+            "max": 365.00000000000034
+        }
+    ],
+    "out_var": {
+        "label": "target",
+        "min": 2.33,
+        "max": 82.63000000000007
+    }
+}

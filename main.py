@@ -8,7 +8,7 @@ from tqdm import tqdm
 from multiprocessing import Pool
 
 from arg_parser import parse_args
-from data_loader import load_data_split
+from data_loader import load_data, load_data_split
 from fuzzy import FuzzySystem
 from chromosome import Chromosome
 from test import comprehensive_test
@@ -24,14 +24,13 @@ def init_population(names: List[List[str]],
         population.append(chromosome)
     return population
 
-def score_chromosome(dataset: pd.DataFrame,
-                     names: List[List[str]],
-                     chromosome: Chromosome) -> float:
+def score_chromosome(fuzzy_system: FuzzySystem,
+                     dataset: pd.DataFrame,
+                     chromosome: Chromosome,
+                     metric: str) -> float:
 
-    system = FuzzySystem(dataset=dataset, names=names)
-    system.create_ctrl_system(chromosome)
-    error, _, _ = system.compute_error(data=dataset, method='abs')
-    return error
+    ctrl_system = fuzzy_system.create_ctrl_system(chromosome)
+    return fuzzy_system.compute_score(ctrl_system, dataset, metric)
 
 def mutate(chromosome: Chromosome, mutation_rate: float, a_mutation: float) -> Chromosome:
     new_chromosome = Chromosome(names=chromosome.names)
@@ -53,31 +52,33 @@ def mutate(chromosome: Chromosome, mutation_rate: float, a_mutation: float) -> C
 
     return new_chromosome
 
-def genetic_algorithm(dataset: pd.DataFrame,
-                      names: List[List[str]],
+def genetic_algorithm(fuzzy_system: FuzzySystem,
+                      dataset: pd.DataFrame,
                       pop_size: int,
                       n_generations: int,
                       mutation: float,
                       active_rules: float,
                       a_mutation: float,
                       processes: int,
-                      input: str) -> Tuple[Chromosome, float]:
+                      input: str,
+                      metric: str) -> Tuple[Chromosome, float]:
 
     print(f'Training started ...')
 
     if input is None:
         print('Initial population was generated randomly')
-        population = init_population(names, pop_size, active_rules)
+        population = init_population(names=fuzzy_system.names, pop_size=pop_size, active_rules=active_rules)
+
         best_chromosome = None
         best_error = np.inf
     else:
         print('Initial population was loaded from file')
-        chromosome = Chromosome(names=names)
+        chromosome = Chromosome(names=fuzzy_system.names)
         chromosome.load(input)
         population = [chromosome] * pop_size
 
         best_chromosome = population[0]
-        best_error = score_chromosome(dataset, names, best_chromosome)
+        best_error = score_chromosome(fuzzy_system, dataset, best_chromosome, metric)
 
     for i in range(n_generations):
 
@@ -85,19 +86,22 @@ def genetic_algorithm(dataset: pd.DataFrame,
         if processes > 1:
             with Pool(processes=processes) as pool:
                 futures = [
-                    pool.apply_async(score_chromosome, (dataset, names, chrom))
+                    pool.apply_async(score_chromosome, (fuzzy_system, dataset, chrom, metric))
                     for chrom in population
                 ]
                 for idx, future in tqdm(enumerate(futures), total=pop_size, desc=f'Evaluating gen {i + 1}/{n_generations}'):
                     errors[idx] = future.get()
         else:
-            for idx, chromosome in tqdm(enumerate(population), total=pop_size, desc=f"Evaluating Gen {i + 1}/{n_generations}"):
-                errors[idx] = score_chromosome(dataset, names, chromosome)
+            for idx, chromosome in tqdm(enumerate(population), total=pop_size, desc=f'Evaluating Gen {i + 1}/{n_generations}'):
+                errors[idx] = score_chromosome(fuzzy_system, dataset, chromosome, metric)
+
+        current_best_chromosome = population[errors.argmin()]
+        current_best_error = errors.min()
 
         changed = False
-        if errors.min() <= best_error:
-            best_error = errors.min()
-            best_chromosome = population[errors.argmin()]
+        if current_best_error <= best_error:
+            best_error = current_best_error
+            best_chromosome = current_best_chromosome
             changed = True
 
         # copy best parent to all children
@@ -105,7 +109,7 @@ def genetic_algorithm(dataset: pd.DataFrame,
         children = [mutate(chromosome=child, mutation_rate=mutation, a_mutation=a_mutation) for child in children]
         population = children
 
-        print(f'Best error so far: {best_error:.4f} ({"changed" \
+        print(f'Best error so far: {best_error:.4f} [{metric}] ({"changed" \
             if changed else "not changed"}) - active rules: {best_chromosome.get_real_size()}')
         
         if not changed:
@@ -118,71 +122,75 @@ def genetic_algorithm(dataset: pd.DataFrame,
 def main():
     args = parse_args()
     
+    # set or create new seed
     seed = args.seed
     if args.seed is None:
         seed = int(time.time() * 1000000) % (2**32 - 1)
     np.random.seed(seed)
     print(f'Seed: {np.random.get_state()[1][0]}')
     
-    train, test = load_data_split(args.dataset, seed=args.seed)
+    # load partitioned data from csv using seed
+    train, test = load_data_split(args.dataset, seed=seed)
 
     # generate names for membership functions (last must be the target)
     names = [['low', 'medium', 'high'] for _ in range(train.shape[1])]
 
     # -1 because last column is the target
     n_vars = len(names) - 1
-    n_rules = n_vars * (n_vars - 1) // 2
+    n_rules = n_vars * (n_vars - 1) // 2 # n choose k combinatory rule
     print(f'Number of rules: {n_rules} ({n_rules * 4} parameters)')
+
+    # create fuzzy system
+    fuzzy_system = FuzzySystem()
+    fuzzy_system.initialize(train, names, 0.1) # step is hardcoded
 
     # training (GA)
     best_chromosome, best_error = genetic_algorithm(
+        fuzzy_system=fuzzy_system,
         dataset=train,
-        names=names,
         pop_size=args.pop_size,
         n_generations=args.generations,
         mutation=args.mutation,
         active_rules=args.active_rules,
         a_mutation=args.a_mutation,
         processes=args.processes,
-        input=args.input
+        input=args.input,
+        metric=args.error_metric
     )
 
-    # save result + config (for reproducibility)
+    # save config for reproducibility
     config = vars(args)
     config['seed'] = int(np.random.get_state()[1][0])
-
     timestamp = datetime.now().strftime('%Y%m%d%H%M')
-    with open(f'configs/config{timestamp}.json', 'w') as f:
+    with open(f'configs/config_{timestamp}.json', 'w') as f:
         json.dump(config, f, indent=4)
+    
+    # also save fuzzy system !!! hardcoded -> will rewrite file
+    # hardcoded because all chromosome will share this system
+    fuzzy_system.save(f'system.json')
 
+    # save best chromosome with same timestamp as config
     best_chromosome.save(f'chromosomes/chrom_{timestamp}.npz')
 
     print(f'Best error (train): {best_error:.4f}')
 
     # evaluation
-    run_test(dataset=test, names=names, chromosome=best_chromosome, test=args.test)
+    run_test(fuzzy_system, best_chromosome, test, args.error_metric, args.test)
 
-    # print('Best chromosome rules:')
-    # best_chromosome.print_rules(train.columns)
-
-def run_test(dataset: pd.DataFrame,
-             names: List[List[str]],
+def run_test(fuzzy_system: FuzzySystem,
              chromosome: Chromosome,
-             test: bool = False) -> None:
-    # create fuzzy system for chromosome
-    system = FuzzySystem(dataset=dataset, names=names)
-    system.create_ctrl_system(chromosome)
-
-    # compute error for chromosome
-    error, misfired, max_error = system.compute_error(dataset, 'abs')
+             dataset: pd.DataFrame,
+             metric: str,
+             test: bool) -> None:
+    
+    ctrl_system = fuzzy_system.create_ctrl_system(chromosome)
 
     print('<-----Evaluation results----->')
     if not test:
+        error = fuzzy_system.compute_score(ctrl_system, dataset, metric)
         print(f'Error (test): {error:.4f}')
-        print(f'Misfired: {misfired}')
-        print(f'Max error: {max_error:.4f}')
     else:
-        comprehensive_test(dataset, system)
+        comprehensive_test(fuzzy_system, chromosome, dataset)
     print('<---------------------------->')
 
 if __name__ == '__main__':

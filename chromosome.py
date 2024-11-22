@@ -7,7 +7,7 @@ class Chromosome:
         self.names = names
         self.n_vars = len(self.names)
 
-        # possible names for each rule unpacked
+        # possible names for each rule
         self.x1_names = []
         self.x2_names = []
         self.unpack_names(names)
@@ -17,7 +17,6 @@ class Chromosome:
         self.x2 = np.array([], dtype=int)
         self.y = np.array([], dtype=int)
         self.weights = np.array([], dtype=int)
-        # self.weights = np.ones(self.len, dtype=int) # for loading not weighted chromosomes
 
     def unpack_names(self, names: List[List[str]]):
         for i in range(self.n_vars - 1):
@@ -62,7 +61,10 @@ class Chromosome:
     def __str__(self):
         return f'x1: {self.x1}\nx2: {self.x2}\ny: {self.y}\nweights: {self.weights}'
     
+    ####################
     # helper functions
+    ####################
+    
     def print_rules(self, var_list: List[str]):
         iter_x1 = iter(self.x1)
         iter_x2 = iter(self.x2)

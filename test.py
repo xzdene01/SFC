@@ -1,3 +1,4 @@
+import argparse
 import numpy as np
 import pandas as pd
 
@@ -6,10 +7,7 @@ from tqdm import tqdm
 
 from chromosome import Chromosome
 from fuzzy import FuzzySystem
-
-# if ran from main
-dataset_path = 'data/Concrete_Data.csv'
-chromosome_path = 'chromosomes/best_chromosome.npz'
+from data_loader import load_data, load_data_split
 
 def print_results(target: pd.Series, predictions: list) -> None:
     # target stats
@@ -17,7 +15,7 @@ def print_results(target: pd.Series, predictions: list) -> None:
     variance = target.var()
     std_dev = target.std()
 
-    # compute errors
+    # errors
     residuals = target - predictions
     mse = np.mean(residuals ** 2)
     mae = np.mean(np.abs(residuals))
@@ -26,9 +24,10 @@ def print_results(target: pd.Series, predictions: list) -> None:
     mse_relative = mse / variance
     mae_relative = mae / std_dev
 
-    # test normal distribution
+    # test for normal distribution
     anderson_result = anderson(target)
 
+    # print all results
     print('\nTarget variable stats:')
     print(f'\tMean: {mean:.4f}')
     print(f'\tVariance: {variance:.4f}')
@@ -46,45 +45,47 @@ def print_results(target: pd.Series, predictions: list) -> None:
     if anderson_result.statistic < anderson_result.critical_values[2]:  # 5% level
         print("The data appears to be normally distributed (5%).")
     else:
-        print("The data does not appear to be normally distributed (5%).")
+        print("The data does not appear to be normally distributed (5%)")
 
-def get_predictions(row: pd.DataFrame,
-                    system: FuzzySystem) -> float:
-    misfires = 0
-    predictions = []
-    for i in tqdm(range(row.shape[0]), total=row.shape[0], desc='Getting predictions'):
-        simulation = system.compute(row.iloc[i])
-        try:
-            predictions.append(simulation.output['target'])
-        except:
-            predictions.append(row['target'].mean())
-            misfires += 1
-    print(f'Misfired: {misfires}')
-    return predictions
-
-def comprehensive_test(dataset: pd.DataFrame, system: FuzzySystem) -> None:
+def comprehensive_test(fuzzy_system: FuzzySystem, chromosome: Chromosome, dataset: pd.DataFrame) -> None:
+    ctrl_system = fuzzy_system.create_ctrl_system(chromosome)
     target = dataset['target']
-    predictions = get_predictions(dataset, system)
+
+    predictions = []
+    for i in tqdm(range(len(dataset)), desc='Predicting'):
+        prediction = fuzzy_system.get_prediction(ctrl_system, dataset.iloc[i])
+        predictions.append(prediction)
+
     print_results(target, predictions)
 
 def main():
+    # parse args
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d', '--dataset',      type=str, default='data/Concrete_Data.csv', help='Path to dataset')
+    parser.add_argument('-f', '--fuzzy_system', type=str, default='system.json',            help='Path to fuzzy system')
+    parser.add_argument('-c', '--chromosome',   type=str, default='chromosomes/chrom.npz',  help='Path to chromosome')
+    args = parser.parse_args()
+
+    dataset_path = args.dataset
+    fuzzy_system_path = args.fuzzy_system
+    chromosome_path = args.chromosome
+
     # load dataset
-    dataset = pd.read_csv(dataset_path)
+    dataset = load_data(dataset_path)
+
+    # load fuzzy system
+    fuzzy_system = FuzzySystem()
+    fuzzy_system.load(fuzzy_system_path)
 
     # load chromosome
-    names = [['low', 'medium', 'high'] for _ in range(dataset.shape[1])]
-    chromosome = Chromosome(names=names)
+    chromosome = Chromosome(names=fuzzy_system.names)
     chromosome.load(chromosome_path)
 
     # print chromosome + rules
     print(chromosome)
     chromosome.print_rules(dataset.columns)
 
-    # create fuzzy system
-    system = FuzzySystem(dataset=dataset, names=names)
-    system.create_ctrl_system(chromosome)
-
-    comprehensive_test(dataset=dataset, system=system)
+    comprehensive_test(fuzzy_system, chromosome, dataset)
 
 if __name__ == '__main__':
     main()
