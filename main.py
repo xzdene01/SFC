@@ -8,7 +8,6 @@ from tqdm import tqdm
 from multiprocessing import Pool
 
 from arg_parser import parse_args
-from data_loader import load_data, load_data_split
 from fuzzy import FuzzySystem
 from chromosome import Chromosome
 from test import comprehensive_test
@@ -129,11 +128,11 @@ def main():
     np.random.seed(seed)
     print(f'Seed: {np.random.get_state()[1][0]}')
     
-    # load partitioned data from csv using seed
-    train, test = load_data_split(args.dataset, seed=seed)
+    # load data from csv
+    dataset = pd.read_csv(args.dataset)
 
     # generate names for membership functions (last must be the target)
-    names = [['low', 'medium', 'high'] for _ in range(train.shape[1])]
+    names = [['low', 'medium', 'high'] for _ in range(dataset.shape[1])]
 
     # -1 because last column is the target
     n_vars = len(names) - 1
@@ -142,12 +141,12 @@ def main():
 
     # create fuzzy system
     fuzzy_system = FuzzySystem()
-    fuzzy_system.initialize(train, names, 0.1) # step is hardcoded
+    fuzzy_system.initialize(dataset, names, 0.1) # step is hardcoded
 
     # training (GA)
     best_chromosome, best_error = genetic_algorithm(
         fuzzy_system=fuzzy_system,
-        dataset=train,
+        dataset=dataset,
         pop_size=args.pop_size,
         n_generations=args.generations,
         mutation=args.mutation,
@@ -172,10 +171,10 @@ def main():
     # save best chromosome with same timestamp as config
     best_chromosome.save(f'chromosomes/chrom_{timestamp}.npz')
 
-    print(f'Best error (train): {best_error:.4f}')
+    print(f'Best error: {best_error:.4f}')
 
     # evaluation
-    run_test(fuzzy_system, best_chromosome, test, args.error_metric, args.test)
+    run_test(fuzzy_system, best_chromosome, dataset, args.error_metric, args.test)
 
 def run_test(fuzzy_system: FuzzySystem,
              chromosome: Chromosome,
@@ -188,7 +187,7 @@ def run_test(fuzzy_system: FuzzySystem,
     print('<-----Evaluation results----->')
     if not test:
         error = fuzzy_system.compute_score(ctrl_system, dataset, metric)
-        print(f'Error (test): {error:.4f}')
+        print(f'Error: {error:.4f}')
     else:
         comprehensive_test(fuzzy_system, chromosome, dataset)
     print('<---------------------------->')

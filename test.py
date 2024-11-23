@@ -2,12 +2,11 @@ import argparse
 import numpy as np
 import pandas as pd
 
-from scipy.stats import kstest, norm, expon, uniform, gamma, beta, anderson
+from scipy.stats import anderson
 from tqdm import tqdm
 
-from chromosome import Chromosome
 from fuzzy import FuzzySystem
-from data_loader import load_data, load_data_split
+from chromosome import Chromosome
 
 def print_results(target: pd.Series, predictions: list) -> None:
     # target stats
@@ -71,7 +70,7 @@ def main():
     chromosome_path = args.chromosome
 
     # load dataset
-    dataset = load_data(dataset_path)
+    dataset = pd.read_csv(dataset_path)
 
     # load fuzzy system
     fuzzy_system = FuzzySystem()

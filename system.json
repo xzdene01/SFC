@@ -47,7 +47,7 @@
         ]
     ],
     "float_step": 0.1,
-    "default_output": 36.5576213592233,
+    "default_output": 35.817961165048544,
     "in_vars": [
         {
             "label": "Cement ",
@@ -62,12 +62,12 @@
         {
             "label": "Fly Ash ",
             "min": 0.0,
-            "max": 174.70000000000002
+            "max": 200.10000000000002
         },
         {
             "label": "Water ",
             "min": 121.8,
-            "max": 227.99999999999397
+            "max": 246.9999999999929
         },
         {
             "label": "Superplasticizer ",

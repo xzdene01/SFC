@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from skfuzzy import control as ctrl
-from typing import List, Tuple
+from typing import List
 
 from chromosome import Chromosome
 
