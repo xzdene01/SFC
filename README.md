@@ -22,13 +22,13 @@ bash install.sh
 
 This script will:
 
-- *install miniconda* locally insode project root directory (this directory)
+- *install miniconda* locally inside project root directory
 - *create environment* from environment.yaml file
 - *activate environment* that was just created
 
 ### Manual with conda environmet
 
-If you already have conda/miniconda installed just run this command:
+If you already have conda installed just run this command:
 
 ```bash
 conda env create --file environment.yaml --name sfc

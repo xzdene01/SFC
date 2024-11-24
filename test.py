@@ -22,6 +22,7 @@ def print_results(target: pd.Series, predictions: list) -> None:
     # compare metrics to variance
     mse_relative = mse / variance
     mae_relative = mae / std_dev
+    r2 = 1 - (mse / variance)
 
     # test for normal distribution
     anderson_result = anderson(target)
@@ -37,6 +38,7 @@ def print_results(target: pd.Series, predictions: list) -> None:
     print(f'\tMAE: {mae:.4f}')
     print(f'\tMSE relative to variance: {mse_relative:.4f}')
     print(f'\tMAE relative to standard deviation: {mae_relative:.4f}')
+    print(f'\tR2: {r2:.4f}')
 
     print(f"\nAnderson-Darling Test: Statistic: {anderson_result.statistic:.2f}")
     for i, (sig, crit) in enumerate(zip(anderson_result.significance_level, anderson_result.critical_values)):

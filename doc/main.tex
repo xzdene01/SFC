@@ -1,0 +1,156 @@
+\documentclass{article}
+\usepackage{times}
+\usepackage{graphicx}
+\usepackage{xurl}
+\usepackage{hyperref}
+\usepackage{tabularx}
+\usepackage{amsmath}
+\usepackage{minted}
+\usepackage{caption}
+
+\renewcommand{\listingscaption}{Algoritmus}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \vspace*{3cm}
+
+    \Huge SFC -- Projekt \\[0.5cm]
+    \huge Genetické algoritmy + fuzzy logika
+
+    \vfill % Push the following to the bottom of the page
+
+    \begin{flushleft}
+        \Large Jan Zdeněk (xzdene01) \hfill \today
+    \end{flushleft}
+\end{titlepage}
+
+\tableofcontents
+
+\newpage
+\section{Úvod do problematiky}
+
+Pro projekt do předmětu SFC -- Soft Computing bylo zvoleno zadání \emph{GA+FUZZY -- aplikace např. v klasifikaci nebo řízení}, tedy zadání číslo 11. V rámci tohoto projektu byl řešen problém predikce jedné výstupní proměnné z hodnot několika vstupních proměnných (úloha pro regresy). Celá implementace proběhla v jazyce python s použitím několika standardních balíčků (numpy, pandas, atd.) a balíčku \emph{skfuzzy}, který je navržen pro práci s fuzzy logikou a nabízí značnou abstrakci nad vnitřní implementací definice fuzzy proměnných a jejich fukcí příslušnosti, fuzzifikace, inference a defuzzifikace.
+
+V rámci vývoje i pro účely ukázky je použit volně dostupný dataset \emph{Concrete Compressive Strength}\footnote{\url{https://archive.ics.uci.edu/dataset/165/concrete+compressive+strength}}, ketrý obsahuje osm vstupních proměnných (cement, vysokopecní struska, popílek, voda, superplastifikátor, hrubé kamenivo, jemné kamenivo a věk) a jednu výstupní proměnnou (pevnost betonu v tlaku).
+
+% GA
+\section{Genetický algoritmus}
+
+Implementace genetického algoritmu je obsažena primárně v souboru \emph{main.py} a funkci \texttt{genetic\_algorithm()}. Na začátku proběhne inicializace populace a poté $N$ iterací, ve kterých se celá populace ohodnotí a z nejlepšího jedince a mutací je vytvořena následující populace.
+
+\subsection{Chromozom}
+
+Z pohledu genetického algoritmu je chromozom pouze datová struktura, která repre-zentuje daného jedince v populaci. V tomto případě je chromozom, implementován pomocí třídy \texttt{Chromosome},\footnote{soubor chromosome.py} reprezentován několika poli či vektory. Z těchto polí jsou v průběhu tvorbu systému generována pravidla pro fuzzy inferenci. Všechna pole jsou stejné délky, kdy prvky mající totožný index generují jedno pravidlo. Tedy pravidla ve tvaru $P_i = (x_{1i}, x_{2i}, y_i, w_i)$, kde
+
+\begin{itemize}
+    \item $x_{ji} = \overrightarrow{x_j}\left[i\right]$ (pro $j \in \{1, 2\}$) je $j$-tý vstup $i$-tého pravidla;
+    \item $y_i = \overrightarrow{y}\left[i\right]$ je pravá strana $i$-tého pravidla;
+    \item $w_i = \overrightarrow{w}\left[i\right] \in \{0, 1\}$ je váha $i$-tého pravidla,
+\end{itemize}
+, tvoří vektory $\overrightarrow{x_1}$, $\overrightarrow{x_2}$, $\overrightarrow{y}$ a $\overrightarrow{w}$ a dohromady představují jeden chromozom. Co kon-krétně chromozom znamená a jak se z něj generují pravidla je popsáno až v podsekci \ref{rules}.
+
+\subsection{Populace}
+
+Populaci si lze představit jako množinu chromozomů (jedinců) reprezentující jednu iteraci genetického algoritmu. Populace může být inicializována náhodně pomocí metody \texttt{generate\_random()} nebo může být načtena ze souboru pomocí přepínače \texttt{-i INPUT}.\footnote{\texttt{INPUT} reprezentuje cestu k .npz souboru, který obsahuje uložený chromozom} V této implementaci je z populace vybrán vždy jen jeden rodič (nejlepší jedinec podle zvolené metriky) a ten je nakopírován $N$-krát\footnote{$N = |populace|$} do nové populace. Jde tedy o strategii $1 + \lambda$, kde jeden rodič generuje všechny potomky.
+
+\subsection{Mutace}
+
+Posledním krokem pro vygenerování nové populace je mutace každého jedince, která probíhá ve funkci \texttt{mutate()}. Vstupem této fáze není jen mutovaný chromozom, ale i 2 koeficienty mutace. První koeficient koresponduje k mutaci vstupů a výstupu pravidla a na druhém je závislá mutace vah (tento rozdíl není dělán jen z důvodu větší kontroly nad optimalizací, ale i z důvodu úplného zakázání mutace vah). V prvním případě je náhodně vygenerováno zcela nové pravidlo a v tom druhém je obrácena hodnota váhy (váhy mohou nabývat pouze hodnot 0 nebo 1).
+
+% FUZZY
+\section{Fuzzy logika}
+
+Implementace fuzzy logiky se nachází ve třídě \texttt{FuzzySystem}, která však dále vy-užívá i již zmíněnou třídu \texttt{Chromosome}. Na začátku optimalizace je tato třída instanciována -- k tomuto je potřeba trénovací dataset, aby bylo možné správné definice fuzzy proměnných. Definice proměnných probíhá automaticky, ale s předem stanovenou metodou pro defuzzifikaci a předem určeným krokem pro jednotlivé funkce pří-slušnosti. V této implementaci je možné zvolit dataset s libovolným počtem vstupních proměnných (ve fuzzy logice pak \emph{antecedent}) a s jednou výstupní proměnnou (ve fuzzy logice pak \emph{consequent}).
+
+\subsection{Tvorba pravidel}\label{rules}
+
+Chromozom zde reprezentuje zakódovaná pravidla do formy, ve které je možná optimalizace pomocí genetických algoritmů. Jak již bylo zmíněno výše, každé pravidlo je reprezentováno čtveřicí a tedy chromozom obsahuje čtyři pole stejné délky. Pro tvorbu $i$-tého pravidla je potřeba získat všechny čtyři jemu odpovídající hodnoty.\footnote{pravidla ve fuzzy logice mohou být i delší, avšak tento fakt byl v tomto projektu ignorován} Celé pravidlo je však reprezentováno obecně jako sedmice $P = (a_1, v_1, a_2, v_2, c, v_3, w)$, kde
+
+\begin{itemize}
+    \samepage
+    \item $a_1$ a $a_2$ jsou antecedenty;
+    \item $c$ je consequent;
+    \item $v_1$, $v_2$ a $v_3$ jsou hodnoty, kterých v pravidlech nabývájí fuzzy proměnné a
+    \item $w$ je váha daného pravidla.
+\end{itemize}
+
+Hodnoty $v_i$ a $w$ jsou pouze jednoduše dekódovány z chromozomu pomocí pole \emph{names}, které mapuje čísla (indexi) na již konkrétní jména hodnoty, které mohou být reprezentovány slovy (např.: \emph{low}, \emph{medium}, \emph{high}). To ke kterým fuzzy proměnným mají být tyto hodnoty přiřazeny je poté zakódováno přímo v pozici kde se pravidlo v poli nachází. Pro lepší porozumění je k dispozici formálnější popis v algoritmu \ref{lst:rule_creation}.
+
+\begin{listing}[h]
+\begin{minted}[frame=lines, breaklines]{python}
+idx = 0
+for i in range(len(input_vars)):
+    for j in range(len(i+1, input_vars)):
+        # zakódováno v pozici
+        a1 = in_vars[i]
+        a2 = in_vars[j]
+
+        # zakódováno v chromozomu
+        v1 = chromosome.a1[idx]
+        v2 = chromosome.a2[idx]
+        v3 = chromosome.c[idx]
+        w = chromosome.w[idx]
+
+        rule[idx] = create_rule(a1, v1, a2, v2, c, v3, w)
+        idx += 1
+\end{minted}
+\caption{Ukázka kódu výše popisuje tvorbu jednotlivých pravidel z chromozomu. Jedná se o těžce zjednodušený příklad, který neodráží skutečnou implementaci. Dále je z ukázky zřejmé, že proměnná $c$ je konstantní, protože existuje jen jeden consequent, a že počet pravidel je pevně určen počtem antecedentů neboli vstupních proměnných.}
+\label{lst:rule_creation}
+\end{listing}
+
+Tímto procesem je tedy daný chromozom převeden na množinu pravidel, která reprezentuje řídící systém.\footnote{\texttt{ControlSystem} v balíčku \emph{skfuzzy}} Z tohoto systému bude později tvořena simulace, která pracuje již s konkrétními hodnotami.
+
+\subsection{Simulace}
+
+Simulací je rozuměna transformace vstupních proměnných na výstupní proměnnou aplikováním předem definovaných pravidel. Pravidla, a tedy i kontrolní systém, jsou generována pro každý chromozom -- ten představuje unikátní množinu pravidel. Na rozdíl od toho je simulace tvořena pro každý záznam z datasetu -- simulace již obsahuje konkrétní hodnoty proměnných. Tento proces lze popsat v několika krocích:
+
+\begin{enumerate}
+    \samepage
+    \item \textbf{vytvoření} objektu \textbf{simulace} z kontrolního systému (pravidel);
+    \item \textbf{vložení hodnot} pro každou vstupní proměnnou;
+    \item \textbf{fuzzifikace} vstupních proměnných;
+    \item \textbf{fuzzy inference} neboli aplikace jednotlivých pravidel a
+    \item následná \textbf{defuzzifikace} výstupní hodnoty, tedy převedení na již konkrétní číslo.
+\end{enumerate}
+Kroky 3, 4 a 5 probíhají zcela automaticky s pomocí python knihovny \emph{skfuzzy} a tedy zde nejsou popsány.
+
+% other
+\section{Návod}
+
+Pro instalaci je nutné pouze zreplikovat prostředí v nástroji \emph{conda} a to příkazem
+
+\begin{minted}[fontsize=\fontsize{9}{3}]{bash}
+    conda env create --file environment.yaml --name sfc
+\end{minted}
+, kdy po jeho aktivaci je již možné spustit \emph{main.py} pro optimalizaci nebo \emph{test.py} pro evaluaci daného chromozomu. Jak spouštět jednotlivé skripty je popsané v přiloženém souboru \emph{README.md} nebo lze při spuštění zvolit přepínač \texttt{-h}.
+
+\subsection{Optimalizace}
+
+Před započetím optimalizace je potřeba zvolit dataset, parametry pro genetický algoritmus, metriku pro ohodnocení jedince a obecné parametry pro běh programu. Všechny tyto parametry mají přidělenou výchozí hodnotu a tedy je možné skript \emph{main.py} spustit i bez jejich určení, ale i přesto jsou zde některé vysvětleny:
+
+\begin{itemize}
+
+    \item \textbf{cesta k datasetu} -- dataset musí být ve formátu .csv a musí obsahovat právě jeden sloupec, ketrý reprezentuje predikovanou hodnotu (v ukázkovém případě se jedná o pevnost betonu v tlaku, angl. \emph{Concrete compressive strength}) a nese název \emph{target};
+
+    \item většina vstupních parametrů je typická pro tuto metodu optimalizace, avšak para-metry \textbf{active\_rules}, tedy poměr pravidel s váhou 1 při inicializaci, a \textbf{a\_mutation}, tedy koeficien mutace pro váhy pravidel, stojí za zmínku;
+
+    \item \textbf{přepínač pro testování} poté určuje zda má být provedena ještě výsledná evaluace celého systému na datasetu a
+
+    \item v poslední řadě lze zvolit \textbf{vstupní chromozom}, který bude použit pro inicializaci populace místo náhodného generování pravidel.
+\end{itemize}
+
+Výsledný chromozom a konfigurace pro jeho získání jsou po provedení optimalizace uloženy do složek chromosomes/ a configs/. Názvy těchto souborů jsou ukončeny časovou značkou pro zamezení přepisování již předtím uložených souborů. Mimo chromozomu je pro predikci potřebné mít uložená i metadata o systému, aby bylo možné správně sestavit pravidla z chromozomu. Tato metadata jsou uložena do sou-boru \emph{system.json}, ale pozor tento soubor se po každém spuštění přepisuje!
+
+\subsection{Testování}
+
+Při testování chromozomu je potřeba poskytnout pouze dataset, chromozom a metadata systému. Výsledkem je poté mírně detailnější analýza správnosti chromozomu, která je vypsána na standardní výstup programu. Například pro vypsání výsledků ukázkového chromozomu je možné skript spustit pomocí příkazu:
+
+\begin{minted}[fontsize=\fontsize{9}{3}]{bash}
+    python test.py -c chromosomes/chrom.npz
+\end{minted}
+. Výsledky ukázkového chromozomu jsou i uloženy v souboru \emph{result.txt}.
+
+\end{document}
+

@@ -1,11 +1,11 @@
 import argparse
 
-default_datapath = 'data/Concrete_Data.csv'
+DEFAULT_DATAPATH = 'data/Concrete_Data.csv'
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Fuzzy system optimization using genetic algorithm')
 
-    parser.add_argument('-d', '--dataset',      type=str, default=default_datapath, help='Path to dataset')
+    parser.add_argument('-d', '--dataset',      type=str, default=DEFAULT_DATAPATH, help='Path to dataset')
     parser.add_argument('-s', '--pop_size',     type=int, default=64,               help='Population size')
     parser.add_argument('-g', '--generations',  type=int, default=20,               help='Number of generations')
     parser.add_argument('-m', '--mutation',     type=float, default=0.1,            help='Mutation rate')

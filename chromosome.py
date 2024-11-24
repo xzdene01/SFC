@@ -19,6 +19,7 @@ class Chromosome:
         self.weights = np.array([], dtype=int)
 
     def unpack_names(self, names: List[List[str]]):
+        # need to mimic rule creation to correctly map var names to values
         for i in range(self.n_vars - 1):
             for j in range(i + 1, self.n_vars - 1):
                 self.x1_names.append(names[i])

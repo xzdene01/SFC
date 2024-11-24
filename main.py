@@ -103,7 +103,7 @@ def genetic_algorithm(fuzzy_system: FuzzySystem,
             best_chromosome = current_best_chromosome
             changed = True
 
-        # copy best parent to all children
+        # copy best parent to all children and mutate
         children = [best_chromosome] * pop_size
         children = [mutate(chromosome=child, mutation_rate=mutation, a_mutation=a_mutation) for child in children]
         population = children
@@ -114,6 +114,7 @@ def genetic_algorithm(fuzzy_system: FuzzySystem,
         if not changed:
             print(f'Best error from current generation: {errors.min():.4f}')
         
+        # chromosome if optimalization is cut short
         best_chromosome.save('tmp.npz')
 
     return best_chromosome, best_error
@@ -128,10 +129,10 @@ def main():
     np.random.seed(seed)
     print(f'Seed: {np.random.get_state()[1][0]}')
     
-    # load data from csv
+    # dataset must be in csv format and have exactly one 'target' column
     dataset = pd.read_csv(args.dataset)
 
-    # generate names for membership functions (last must be the target)
+    # generate names for membership functions (last is target)
     names = [['low', 'medium', 'high'] for _ in range(dataset.shape[1])]
 
     # -1 because last column is the target
@@ -139,7 +140,7 @@ def main():
     n_rules = n_vars * (n_vars - 1) // 2 # n choose k combinatory rule
     print(f'Number of rules: {n_rules} ({n_rules * 4} parameters)')
 
-    # create fuzzy system
+    # create fuzzy system - is same for all chromosomes
     fuzzy_system = FuzzySystem()
     fuzzy_system.initialize(dataset, names, 0.1) # step is hardcoded
 
@@ -165,13 +166,11 @@ def main():
         json.dump(config, f, indent=4)
     
     # also save fuzzy system !!! hardcoded -> will rewrite file
-    # hardcoded because all chromosome will share this system
+    # this is because all runs on same dataset will have the same system
     fuzzy_system.save(f'system.json')
 
     # save best chromosome with same timestamp as config
     best_chromosome.save(f'chromosomes/chrom_{timestamp}.npz')
-
-    print(f'Best error: {best_error:.4f}')
 
     # evaluation
     run_test(fuzzy_system, best_chromosome, dataset, args.error_metric, args.test)

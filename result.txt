@@ -1,0 +1,37 @@
+x1: [0 2 0 2 2 2 2 1 2 2 2 1 1 2 0 2 2 1 1 0 2 1 2 2 0 0 1 1]
+x2: [1 0 1 0 0 2 0 2 0 0 0 0 2 2 1 2 2 1 0 0 2 2 2 1 0 0 1 1]
+y: [0 2 0 0 2 1 2 0 1 0 0 0 2 0 2 0 0 2 0 2 0 1 2 2 0 1 2 2]
+weights: [1 0 1 0 0 1 0 0 0 0 0 1 0 0 1 1 0 1 0 1 1 1 0 1 0 0 1 1]
+Rule 0: Cement (low) & Blast Furnace Slag (medium) -> target(low)
+Rule 2: Cement (low) & Water (medium) -> target(low)
+Rule 5: Cement (high) & Fine Aggregate (high) -> target(medium)
+Rule 11: Blast Furnace Slag (medium) & Fine Aggregate (low) -> target(low)
+Rule 14: Fly Ash (low) & Superplasticizer (medium) -> target(high)
+Rule 15: Fly Ash (high) & Coarse Aggregate (high) -> target(low)
+Rule 17: Fly Ash (medium) & Age (medium) -> target(high)
+Rule 19: Water (low) & Coarse Aggregate (low) -> target(high)
+Rule 20: Water (high) & Fine Aggregate (high) -> target(low)
+Rule 21: Water (medium) & Age (high) -> target(medium)
+Rule 23: Superplasticizer (high) & Fine Aggregate (medium) -> target(high)
+Rule 26: Coarse Aggregate (medium) & Age (medium) -> target(high)
+Rule 27: Fine Aggregate (medium) & Age (medium) -> target(high)
+
+Target variable stats:
+	Mean: 35.8180
+	Variance: 279.0818
+	Standard deviation: 16.7057
+
+Prediction errors:
+	MSE: 122.2329
+	MAE: 8.3972
+	MSE relative to variance: 0.4380
+	MAE relative to standard deviation: 0.5027
+	R2: 0.5620
+
+Anderson-Darling Test: Statistic: 4.07
+	15.0% Significance Level:	Critical Value=0.57
+	10.0% Significance Level:	Critical Value=0.65
+	5.0% Significance Level:	Critical Value=0.78
+	2.5% Significance Level:	Critical Value=0.91
+	1.0% Significance Level:	Critical Value=1.09
+The data does not appear to be normally distributed (5%)

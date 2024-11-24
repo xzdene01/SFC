@@ -89,7 +89,6 @@ class FuzzySystem:
         return simulation
 
     def get_prediction(self, control_system: ctrl.ControlSystem, inputs: pd.Series) -> float:
-        
         simulation = self.compute(control_system, inputs)
         try:
             return simulation.output['target']
@@ -111,6 +110,8 @@ class FuzzySystem:
 
     def save(self, filename):
 
+        # this will not save membership functions nor universe -> these must be generated separately
+        # universe could be saved but it is not necessary -> it can be generated from min, max and step
         def fuzzy_to_dict(fuzzy):
             return {
                 'label': fuzzy.label,
@@ -154,6 +155,7 @@ class FuzzySystem:
         self.in_vars = [dict_to_fuzzy(var) for var in data['in_vars']]
         self.out_var = dict_to_fuzzy(data['out_var'], is_output=True)
 
+        # mem funcs were not saved -> must be generated (could be cause theyre generated automatically)
         self.define_membership_functions()
 
     def print_vars(self, print_mem_funcs=False):
