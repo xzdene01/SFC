@@ -26,7 +26,7 @@ This script will:
 - *create environment* from environment.yaml file
 - *activate environment* that was just created
 
-### Manual with conda environmet
+### Manual with conda environment
 
 If you already have conda installed just run this command:
 
