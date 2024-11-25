@@ -76,9 +76,9 @@ Chromozom zde reprezentuje zakódovaná pravidla do formy, ve které je možná 
     \item $w$ je váha daného pravidla.
 \end{itemize}
 
-Hodnoty $v_i$ a $w$ jsou pouze jednoduše dekódovány z chromozomu pomocí pole \emph{names}, které mapuje čísla (indexi) na již konkrétní jména, které mohou být reprezentovány slovy (např.: \emph{low}, \emph{medium}, \emph{high}). To ke kterým fuzzy proměnným mají být tyto hodnoty přiřazeny je poté zakódováno přímo v pozici kde se pravidlo v poli nachází. Pro lepší porozumění je k dispozici formálnější popis v algoritmu \ref{lst:rule_creation}.
+Hodnoty $v_i$ a $w$ jsou pouze jednoduše dekódovány z chromozomu pomocí pole \emph{names}, které mapuje čísla/indexy na již konkrétní jména, která mohou být reprezentována například slovy: \emph{low}, \emph{medium}, \emph{high}. Pole names je tedy polem polí, kde prvek $N_k = names[k]$ je pole všech možných lingvistických hodnot, kterých může $k$-tá\footnote{pozor jedná se o $k$-tou proměnnou nikoli pravidlo, $k$ je dekódováno z pozice v chromozomu viz. algoritmus \ref{lst:rule_creation}} proměnná nabývat.\footnote{příklad: $a_i = teplota$, $v_i = 2$, $N_{teplota} = [low, medium, high]$, pak bude tento antecedent v pravidle vypadat: $teplota[medium]$} To ke kterým fuzzy proměnným mají být tyto hodnoty přiřazeny je poté zakódováno přímo v pozici kde se pravidlo v poli nachází. Pro lepší porozumění je k dispozici formálnější popis v algoritmu \ref{lst:rule_creation}.
 
-\begin{listing}[h]
+\begin{listing}[H]
 \begin{minted}[frame=lines, breaklines]{python}
 idx = 0
 for i in range(len(input_vars)):
