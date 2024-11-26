@@ -17,7 +17,7 @@ Main focus of this project is to find best rules for fuzzy inference using genet
 For automatic instalation just run command:
 
 ```bash
-bash install.sh
+source install.sh
 ```
 
 This script will:
