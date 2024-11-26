@@ -9,9 +9,6 @@ MINICONDA_URL="https://repo.anaconda.com/miniconda/$MINICONDA_INSTALLER"
 INSTALL_DIR="$PWD/miniconda"
 ENV_FILE="environment.yaml"
 
-# Step 0: Make directory for conda
-# mkdir "$INSTALL_DIR"
-
 # Step 1: Download Miniconda installer
 echo "Downloading Miniconda installer..."
 wget "$MINICONDA_URL" -O "$MINICONDA_INSTALLER"
