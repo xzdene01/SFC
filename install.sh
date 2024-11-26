@@ -9,9 +9,12 @@ MINICONDA_URL="https://repo.anaconda.com/miniconda/$MINICONDA_INSTALLER"
 INSTALL_DIR="$PWD/miniconda"
 ENV_FILE="environment.yaml"
 
+# Step 0: Make directory for conda
+# mkdir "$INSTALL_DIR"
+
 # Step 1: Download Miniconda installer
 echo "Downloading Miniconda installer..."
-curl -fsSL -o "$MINICONDA_INSTALLER" "$MINICONDA_URL"
+wget "$MINICONDA_URL" -O "$MINICONDA_INSTALLER"
 
 # Step 2: Install Miniconda locally
 echo "Installing Miniconda in $INSTALL_DIR..."
@@ -19,7 +22,8 @@ bash "$MINICONDA_INSTALLER" -b -p "$INSTALL_DIR"
 
 # Step 3: Initialize Miniconda
 echo "Initializing Miniconda..."
-eval "$($INSTALL_DIR/bin/conda shell.bash hook)"
+source miniconda/bin/activate
+# conda init --all
 
 # Step 4: Create environment from YAML file
 if [ -f "$ENV_FILE" ]; then
